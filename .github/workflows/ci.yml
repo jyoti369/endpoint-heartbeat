@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ci
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: jitter
+        run: sleep $((RANDOM % 40))
+      - name: probe
+        env:
+          PROBE_URL: ${{ secrets.PROBE_URL }}
+          PROBE_BODY: ${{ secrets.PROBE_BODY }}
+          PROBE_HEADERS: ${{ secrets.PROBE_HEADERS }}
+          PROBE_COOKIE: ${{ secrets.PROBE_COOKIE }}
+          COUNT_PATH: ${{ secrets.COUNT_PATH }}
+          TARGET_LINK: ${{ secrets.TARGET_LINK }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python3 src/probe.py
+      - name: persist state
+        if: always()
+        run: |
+          if [[ -n "$(git status --porcelain src/state.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/state.json
+            git commit -m "state" && git push || true
+          fi
