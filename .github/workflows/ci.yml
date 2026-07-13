@@ -30,7 +30,11 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python3 src/probe.py
+        run: |
+          for i in $(seq 1 14); do
+            python3 src/probe.py || true
+            sleep 20
+          done
       - name: persist state
         if: always()
         run: |

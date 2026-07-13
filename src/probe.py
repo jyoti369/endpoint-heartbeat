@@ -78,9 +78,9 @@ def main():
         try: snippet = e.read().decode("utf-8","replace")[:200]
         except Exception: pass
         log(f"HTTP {code}: {snippet}")
-        if code in (401, 403):
+        if code in (401, 403, 422):
             if not st.get("auth_alerted"):
-                notify("[probe] session expired", "the probe endpoint returned auth error; refresh PROBE_COOKIE / PROBE_BODY secret.")
+                notify("[probe] session expired", "the probe endpoint returned auth/socket error; refresh PROBE_COOKIE / PROBE_BODY secret.")
                 st["auth_alerted"]=True; save_state(st)
             sys.exit(0)
         # other non-200: transient
