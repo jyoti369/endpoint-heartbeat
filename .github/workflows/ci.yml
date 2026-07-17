@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: jitter
-        run: sleep $((RANDOM % 40))
+        run: sleep $((RANDOM % 10))
       - name: probe
         env:
           PROBE_URL: ${{ secrets.PROBE_URL }}
@@ -31,7 +31,7 @@ jobs:
           EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
-          for i in $(seq 1 14); do
+          for i in $(seq 1 4); do
             python3 src/probe.py || true
             sleep 20
           done
