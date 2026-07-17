@@ -1,6 +1,6 @@
 {
   "count": 0,
   "fails": 0,
-  "auth_alerted": true,
-  "last_poll_ts": 1784074332
+  "auth_alerted": false,
+  "last_poll_ts": 1784275967
 }
