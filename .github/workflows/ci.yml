@@ -40,6 +40,7 @@ jobs:
           done
 
       - name: probe
+        if: vars.PROBE_A_ENABLED == 'true'
         env:
           PROBE_URL: ${{ secrets.PROBE_URL }}
           PROBE_BODY: ${{ secrets.PROBE_BODY }}
