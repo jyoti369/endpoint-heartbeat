@@ -35,7 +35,7 @@ def env(name, default=None, required=False):
 
 def call(url, method="GET", headers=None, body=None, timeout=25):
     cmd = ["curl", "-sS", "--max-time", str(timeout), "-w", "\n__C__%{http_code}",
-           "--url", url, "-X", method, "-H", f"user-agent: {UA}"]
+           "--compressed", "--url", url, "-X", method, "-H", f"user-agent: {UA}"]
     for k, v in (headers or {}).items():
         cmd += ["-H", f"{k}: {v}"]
     if body is not None:
@@ -75,6 +75,27 @@ def get_token():
     if not tok:
         raise RuntimeError(f"no token in auth reply: {text[:160]}")
     return tok
+
+
+def collect(chunks):
+    """Ids of rows whose status matches, across every fetched chunk."""
+    want = env("STATUS_MATCH", "claimable").strip().lower()
+    key = env("ROWS_KEY", "tasks")
+    out = []
+    for text in (chunks if isinstance(chunks, list) else [chunks]):
+        try:
+            rows = json.loads(text).get(key) or []
+        except Exception:
+            continue
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            name = (r.get("task_status_defn") or {}).get("status_name") or ""
+            if name.strip().lower() == want:
+                ident = r.get("task_id") or r.get("id")
+                if ident:
+                    out.append(ident)
+    return out
 
 
 def dig(d, path):
@@ -132,26 +153,36 @@ def main():
     headers = json.loads(env("TARGET_HEADERS", "{}"))
     headers["authorization"] = f"Bearer {token}"
     headers.setdefault("accept", "*/*")
-    status, text = call(env("TARGET_URL", required=True), "GET", headers)
-    if status != 200:
-        print(f"target {status}: {text[:160]}", file=sys.stderr)
-        return
+    template = env("TARGET_URL", required=True)
+    scopes = [x.strip() for x in (env("TARGET_SCOPES", "") or "").split(",") if x.strip()]
+    chunks = []
+    for scope in (scopes or [None]):
+        url = template.replace("{SCOPE}", scope) if scope else template
+        status, text = call(url, "GET", headers, timeout=60)
+        if status != 200:
+            print(f"target {status}: {text[:160]}", file=sys.stderr)
+            return
+        chunks.append(text)
+    text = chunks
 
-    rows = dig(json.loads(text), env("COUNT_PATH", "worlds")) or []
-    n = len(rows) if isinstance(rows, list) else int(rows or 0)
+    ids = collect(text)
+    n = len(ids)
+    seen = set(st.get("seen") or [])
+    fresh = [i for i in ids if i not in seen]
     prev = st.get("count", 0)
     st["count"], st["at"] = n, now
-    print(f"count={n} prev={prev}")
+    print(f"count={n} prev={prev} new={len(fresh)}")
 
-    if n > 0 and (n > prev or now - st.get("alerted", 0) > int(env("REALERT", "900"))):
+    # Only genuinely new ids count as an event: the standing total is large, so a
+    # count-based rule would alert forever.
+    if fresh and now - st.get("alerted", 0) > int(env("REALERT", "1800")):
         st["alerted"] = now
-        subject = env("ALERT_SUBJECT2", "[update] {n} new item(s)").format(n=n)
+        subject = env("ALERT_SUBJECT2", "[update] {n} new item(s)").format(n=len(fresh))
         body = env("ALERT_BODY2", "{n} item(s) available.\n{link}").format(
-            n=n, link=env("TARGET_LINK2", ""))
+            n=len(fresh), link=env("TARGET_LINK2", ""))
         push(subject, body)
         mail(subject, body)
-    if n == 0:
-        st.pop("alerted", None)
+    st["seen"] = (list(seen | set(ids)))[-2000:]
     save_state(st)
 
 

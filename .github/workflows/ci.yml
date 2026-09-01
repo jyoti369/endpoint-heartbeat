@@ -26,7 +26,9 @@ jobs:
           TARGET_URL: ${{ secrets.REACH_URL }}
           TARGET_HEADERS: ${{ secrets.TARGET_HEADERS }}
           TARGET_LINK2: ${{ secrets.TARGET_LINK2 }}
-          COUNT_PATH: worlds
+          TARGET_SCOPES: ${{ secrets.TARGET_SCOPES }}
+          ROWS_KEY: tasks
+          STATUS_MATCH: Claimable
           ALERT_SUBJECT2: ${{ secrets.ALERT_SUBJECT2 }}
           ALERT_BODY2: ${{ secrets.ALERT_BODY2 }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
